@@ -1,0 +1,242 @@
+import React, { useState, useEffect } from "react";
+import { auth, db } from "../firebaseConfig";
+import { signOut } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
+  const [userName, setUserName] = useState("");
+  const [userUsername, setUserUsername] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [newProject, setNewProject] = useState({ name: "", description: "" });
+  const [newMember, setNewMember] = useState("");
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem("darkMode", darkMode);
+    document.documentElement.classList.toggle("dark", darkMode);
+
+    if (auth.currentUser) {
+      const fetchUserInfo = async () => {
+        const userRef = doc(db, "users", auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setUserName(userSnap.data().name);
+          setUserUsername(userSnap.data().username);
+        }
+      };
+      fetchUserInfo();
+    }
+
+    fetchNotifications();
+  }, [darkMode]);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/login");
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProject.name.trim()) {
+      alert("Project name is required!");
+      return;
+    }
+  
+    try {
+      // 🔥 Generate a unique project ID
+      const projectRef = doc(collection(db, "projects"));
+      const projectId = projectRef.id; // Get the auto-generated ID
+  
+      // Save project details in Firestore
+      await setDoc(projectRef, {
+        id: projectId, // Store projectId
+        name: newProject.name,
+        description: newProject.description,
+        members: [auth.currentUser.uid] // Store user ID instead of username
+      });
+  
+      setProjects([...projects, { ...newProject, id: projectId }]);
+      setNewProject({ name: "", description: "" });
+  
+      alert("Project created successfully!");
+    } catch (error) {
+      console.error("Error creating project:", error);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!newMember.trim() || projects.length === 0) {
+      alert("Please enter a valid username and create a project first!");
+      return;
+    }
+  
+    try {
+      // 🔍 Find user by username
+      const usersRef = collection(db, "users");
+      const usersSnapshot = await getDocs(usersRef);
+      const userDoc = usersSnapshot.docs.find(doc => doc.data().username === newMember);
+  
+      if (!userDoc) {
+        alert("User not found!");
+        return;
+      }
+  
+      const userId = userDoc.id; // 🔥 Get Firestore user ID
+      const selectedProject = projects[0]; // Pick the first project (you can modify this)
+  
+      if (!selectedProject.id) {
+        alert("Error: Project ID is missing!");
+        return;
+      }
+  
+      // 🔥 Send invite to the selected user with projectId
+      const notificationRef = doc(db, "notifications", userId);
+      const notificationSnap = await getDoc(notificationRef);
+  
+      const invitation = {
+        projectId: selectedProject.id, // Use the stored project ID
+        sender: auth.currentUser.uid, // Store sender's UID
+        status: "pending"
+      };
+  
+      if (notificationSnap.exists()) {
+        await updateDoc(notificationRef, {
+          invitations: arrayUnion(invitation)
+        });
+      } else {
+        await setDoc(notificationRef, { invitations: [invitation] });
+      }
+  
+      alert(`Invitation sent to ${newMember} for project "${selectedProject.name}"!`);
+      setNewMember("");
+    } catch (error) {
+      console.error("Error adding member:", error);
+    }
+  };
+  
+  
+
+  const fetchNotifications = async () => {
+    if (!auth.currentUser) return;
+    const notificationRef = doc(db, "notifications", auth.currentUser.uid);
+    const notificationSnap = await getDoc(notificationRef);
+    
+    if (notificationSnap.exists()) {
+      const invitations = notificationSnap.data().invitations || [];
+      
+      // Debugging: Check if projectId is correctly extracted
+      console.log("Fetched Invitations:", invitations);
+      
+      setNotifications(invitations);
+    }
+  };
+  
+  const handleAcceptInvite = async (projectId) => {
+    if (!projectId) {
+      alert("Error: Project ID is missing! Check console for details.");
+      console.log("Missing projectId - Debug:", projectId);
+      return;
+    }
+  
+    try {
+      console.log("Accepting invite for project:", projectId);
+      const projectRef = doc(db, "projects", projectId);
+      await updateDoc(projectRef, {
+        members: arrayUnion(userUsername)
+      });
+  
+      // Remove the accepted invitation
+      const notificationRef = doc(db, "notifications", auth.currentUser.uid);
+      const notificationSnap = await getDoc(notificationRef);
+  
+      if (notificationSnap.exists()) {
+        const updatedInvitations = notificationSnap.data().invitations.filter(
+          (invite) => invite.projectId !== projectId
+        );
+  
+        await updateDoc(notificationRef, { invitations: updatedInvitations });
+      }
+  
+      alert("You have joined the project!");
+      fetchNotifications();
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+    }
+  };
+  
+  
+
+  return (
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-black"}`}>
+      {/* Navbar */}
+      <nav className="bg-primary p-4 flex justify-between items-center shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-xl">
+            👤
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">{userName}</h2>
+            <p className="text-sm text-gray-400">@{userUsername}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button onClick={() => setDarkMode(!darkMode)} className="px-4 py-2 bg-secondary text-white rounded-lg hover:scale-105">
+            {darkMode ? "🌞 Light Mode" : "🌙 Dark Mode"}
+          </button>
+          <button onClick={handleLogout} className="bg-red-500 px-4 py-2 text-white rounded-lg hover:scale-105">
+            Logout
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="grid md:grid-cols-4 min-h-screen">
+        {/* Sidebar */}
+        <aside className="bg-gray-200 dark:bg-gray-800 p-4 min-h-screen">
+          <h3 className="text-lg font-bold">📂 Project Manager</h3>
+          <ul className="mt-4 space-y-3">
+            <li className="p-2 bg-gray-300 dark:bg-gray-700 rounded-md cursor-pointer">📁 Create Project</li>
+            <li className="p-2 bg-gray-300 dark:bg-gray-700 rounded-md cursor-pointer">👥 Add Members</li>
+            <li className="p-2 bg-gray-300 dark:bg-gray-700 rounded-md cursor-pointer">🔔 Notifications ({notifications.length})</li>
+          </ul>
+        </aside>
+
+        {/* Main Section */}
+        <main className="p-6 col-span-3">
+          {/* Create Project */}
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
+            <h2 className="text-xl font-bold mb-2">📁 Create a New Project</h2>
+            <input type="text" placeholder="Project Name" className="w-full p-2 border rounded-md dark:bg-gray-700 mb-2" value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
+            <textarea placeholder="Project Description" className="w-full p-2 border rounded-md dark:bg-gray-700" value={newProject.description} onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}></textarea>
+            <button className="mt-2 px-4 py-2 bg-primary text-white rounded-md hover:scale-105" onClick={handleCreateProject}>Create</button>
+          </div>
+
+          {/* Add Members */}
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6">
+            <h2 className="text-xl font-bold mb-2">👥 Add Members</h2>
+            <input type="text" placeholder="Username" className="w-full p-2 border rounded-md dark:bg-gray-700 mb-2" value={newMember} onChange={(e) => setNewMember(e.target.value)} />
+            <button className="px-4 py-2 bg-primary text-white rounded-md hover:scale-105" onClick={handleAddMember}>Invite</button>
+          </div>
+
+          {/* Notifications */}
+          {notifications.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+              <h2 className="text-xl font-bold mb-2">🔔 Invitations</h2>
+              {notifications.map((invite, index) => (
+                <div key={index}>
+                  <p>Project: {invite.projectId} (Invited by {invite.sender})</p>
+                  <button onClick={() => handleAcceptInvite(invite.projectId)}>✅ Accept</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
