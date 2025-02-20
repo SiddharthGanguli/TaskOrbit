@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebaseConfig";
 
@@ -13,7 +13,7 @@ const Login = () => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard");
+      navigate("dashboard"); // No leading "/" since HashRouter uses "#/dashboard"
     } catch (error) {
       setError("Invalid email or password");
     }
@@ -41,10 +41,13 @@ const Login = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button className="w-full bg-blue-500 text-white py-2 text-lg rounded hover:bg-blue-600 transition">Login</button>
+          <button className="w-full bg-blue-500 text-white py-2 text-lg rounded hover:bg-blue-600 transition">
+            Login
+          </button>
         </form>
         <p className="text-center mt-4 text-gray-600">
-          Don't have an account? <a href="/register" className="text-blue-500">Register</a>
+          Don't have an account? 
+          <Link to="/register" className="text-blue-500 hover:underline"> Register</Link>
         </p>
       </div>
     </div>

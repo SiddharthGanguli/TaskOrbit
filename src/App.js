@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const PrivateRoute = ({ children }) => {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" />;  // No need to prepend "/TaskOrbit" in HashRouter
 };
 
 // Component to handle GitHub Pages redirect issues
@@ -26,7 +26,8 @@ const AppContent = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="/*" element={<Navigate to="/" />} />
+      {/* Redirect unknown routes */}
     </Routes>
   );
 };
@@ -34,7 +35,7 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router basename={process.env.PUBLIC_URL || "/"}> {/* Dynamically set basename */}
+      <Router> {/* Use HashRouter without basename */}
         <AppContent />
       </Router>
     </AuthProvider>
