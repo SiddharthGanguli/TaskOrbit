@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/TaskOrbit/static/css/main.90570117.css",
-    "main.js": "/TaskOrbit/static/js/main.80987c87.js",
+    "main.js": "/TaskOrbit/static/js/main.61ba5261.js",
     "static/js/453.47924b75.chunk.js": "/TaskOrbit/static/js/453.47924b75.chunk.js",
     "index.html": "/TaskOrbit/index.html",
     "main.90570117.css.map": "/TaskOrbit/static/css/main.90570117.css.map",
-    "main.80987c87.js.map": "/TaskOrbit/static/js/main.80987c87.js.map",
+    "main.61ba5261.js.map": "/TaskOrbit/static/js/main.61ba5261.js.map",
     "453.47924b75.chunk.js.map": "/TaskOrbit/static/js/453.47924b75.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.90570117.css",
-    "static/js/main.80987c87.js"
+    "static/js/main.61ba5261.js"
   ]
 }
